@@ -63,11 +63,11 @@ public class AI{
             FileWriter fWriter = new FileWriter(oFile);
             fWriter.write(cost+"\n");
             for (int i=0;i<route.length;i++){
-                fWriter.write(route[i]+" ");
+                fWriter.write(route[i]+"\n");
             }
             fWriter.close();
         } catch(IOException e){
-            System.out.println(""+cost);
+            System.out.print(cost+"\n");
             for (int i=0;i<route.length;i++){
                 System.out.print(route[i]+"\n");
             }
