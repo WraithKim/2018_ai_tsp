@@ -18,7 +18,7 @@ public class AI{
         int [][] mapData = fileLoader(mapSize, inputFile);
 
         // Blah Blah Blah
-        int [] resultRoute = new int[mapSize];
+        int [] resultRoute = new int[mapSize]; // start city number is 0.
         int resultCost = 0;
         /*
         for(int i=0;i<mapSize;i++){
@@ -59,6 +59,16 @@ public class AI{
     }
 
     public static int resultWriter(int cost, int[] route, File oFile){
+        int [] checkroute = new int[route.length];
+        for(int i=0;i<route.length;i++){
+            checkrout[route[i]] += 1;
+        }
+        int check=1;
+        for(int i=0;i<route.length;i++){
+            check *= checkout[i];
+        }
+        if(check != 1)
+            return -1; //Error! Error!
         try{
             FileWriter fWriter = new FileWriter(oFile);
             fWriter.write(cost+"\n");
