@@ -9,10 +9,10 @@ import java.io.*;
 
 public class AI{
     public static void main(String[] args){
-        // Assume AI.class [MapDataFilePath] [OutputFilePath]
+        // Assume call cmd: java AI [MapDataFilePath] [OutputFilePath]
         File inputFile = new File(args[0]);
         File outputFile = new File(args[1]);
-        int mapSize = 1000; // Integer.parseInt(args[3]);
+        int mapSize = 1000; // Integer.parseInt(args[2]);
 
         // File Reading
         int [][] mapData = fileLoader(mapSize, inputFile);
@@ -20,9 +20,11 @@ public class AI{
         // Blah Blah Blah
         int [] resultRoute = new int[mapSize];
         int resultCost = 0;
+        /*
         for(int i=0;i<mapSize;i++){
             resultRoute[i] = i;
         }
+        */
         for(int i=0;i<mapSize;i++){
             resultCost += mapData[resultRoute[i]][resultRoute[(i+1)%mapSize]];
         }
@@ -67,7 +69,7 @@ public class AI{
         } catch(IOException e){
             System.out.println(""+cost);
             for (int i=0;i<route.length;i++){
-                System.out.print(route[i]+" ");
+                System.out.print(route[i]+"\n");
             }
             e.printStackTrace();
         }
