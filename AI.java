@@ -13,23 +13,21 @@ public class AI{
         File inputFile = new File(args[0]);
         File outputFile = new File(args[1]);
         int mapSize = 1000; // Integer.parseInt(args[2]);
+        int [] resultRoute = new int[mapSize]; // start city number is 0.
+        int resultCost = 0;
 
         // File Reading
         int [][] mapData = fileLoader(mapSize, inputFile);
 
-        // Blah Blah Blah
-        int [] resultRoute = new int[mapSize]; // start city number is 0.
-        int resultCost = 0;
-        /*
+        // There is a example code. Write your algorithm
         for(int i=0;i<mapSize;i++){
             resultRoute[i] = i;
         }
-        */
+        
+        // Calculate a cost of route.
         for(int i=0;i<mapSize;i++){
             resultCost += mapData[resultRoute[i]][resultRoute[(i+1)%mapSize]];
         }
-        // Blah Blah Blah
-
         // File Writing
         resultWriter(resultCost, resultRoute, outputFile);
         return;
@@ -61,14 +59,16 @@ public class AI{
     public static int resultWriter(int cost, int[] route, File oFile){
         int [] checkroute = new int[route.length];
         for(int i=0;i<route.length;i++){
-            checkrout[route[i]] += 1;
+            checkroute[route[i]] += 1;
         }
         int check=1;
         for(int i=0;i<route.length;i++){
-            check *= checkout[i];
+            check *= checkroute[i];
         }
-        if(check != 1)
+        if(check != 1){
+            System.out.print("Error! Error!\n");
             return -1; //Error! Error!
+        }
         try{
             FileWriter fWriter = new FileWriter(oFile);
             fWriter.write(cost+"\n");
