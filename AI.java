@@ -14,7 +14,6 @@ public class AI{
         File outputFile = new File(args[1]);
         int mapSize = 1000; // Integer.parseInt(args[2]);
         int [] resultRoute = new int[mapSize]; // start city number is 0.
-        int resultCost = 0;
 
         // File Reading
         int [][] mapData = fileLoader(mapSize, inputFile);
@@ -24,12 +23,8 @@ public class AI{
             resultRoute[i] = i;
         }
         
-        // Calculate a cost of route.
-        for(int i=0;i<mapSize;i++){
-            resultCost += mapData[resultRoute[i]][resultRoute[(i+1)%mapSize]];
-        }
         // File Writing
-        resultWriter(resultCost, resultRoute, outputFile);
+        resultWriter(resultRoute, mapData, outputFile);
         return;
     }
 
@@ -56,7 +51,8 @@ public class AI{
         return RET;
     }
 
-    public static int resultWriter(int cost, int[] route, File oFile){
+    public static int resultWriter(int[] route, int[][] map, File oFile){
+        int cost = 0;
         int [] checkroute = new int[route.length];
         for(int i=0;i<route.length;i++){
             checkroute[route[i]] += 1;
@@ -66,20 +62,29 @@ public class AI{
             check *= checkroute[i];
         }
         if(check != 1){
-            System.out.print("Error! Error!\n");
+            System.out.println("Duplicated city in route!");
             return -1; //Error! Error!
         }
+        else{
+            System.out.println("Check route: OK");
+            // Calculate a cost of route.
+            for(int i=0;i<route.length;i++){
+                cost += map[route[i]][route[(i+1)%route.length]];
+            }
+            System.out.println("Cost: "+cost);
+        }
+
         try{
             FileWriter fWriter = new FileWriter(oFile);
-            fWriter.write(cost+"\n");
+            fWriter.write(cost+"\r\n");
             for (int i=0;i<route.length;i++){
-                fWriter.write(route[i]+"\n");
+                fWriter.write(route[i]+"\r\n");
             }
             fWriter.close();
         } catch(IOException e){
-            System.out.print(cost+"\n");
+            System.out.print(cost+"\r\n");
             for (int i=0;i<route.length;i++){
-                System.out.print(route[i]+"\n");
+                System.out.print(route[i]+"\r\n");
             }
             e.printStackTrace();
         }
