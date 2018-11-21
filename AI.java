@@ -6,8 +6,7 @@ Example call cmd line
     @2018-11-06, in AI class, cau MI lab, 2018.
 */
 import java.io.*;
-import java.util.Deque;
-import java.util.ArrayDeque;
+import java.util.Random;
 
 public class AI{
     public static void main(String[] args){
@@ -23,6 +22,7 @@ public class AI{
         int [] tmpRoute;
         int resultCost = 0;
         int tmpCost = 0;
+        long startTime = System.nanoTime();
         // 1. greedy search
         resultRoute = greedysearch(0, mapSize, mapData);
         resultCost = getCost(resultRoute, mapData);
@@ -36,20 +36,28 @@ public class AI{
         }
         
         // 2. hill-climbing search
-        double ratio = 1.01;
-        int stochasticCost = (int)(resultCost * ratio);
+        //double ratio = 1.01;
+        //int stochasticCost = (int)(resultCost * ratio);
+        int[] bestRoute = resultRoute;
+        int bestCost = resultCost;
         tmpRoute = hillClimbing(resultRoute, stochasticCost, mapData);
         tmpCost = getCost(tmpRoute, mapData);
-        while(tmpCost < stochasticCost){
+        while(tmpCost < resultCost){
             // if no change, break;
             if(tmpCost == resultCost) break;
+            if(tmpCost < bestCost){
+                bestRoute = tmpRoute;
+                bestCost = tmpCost;
+            }
             resultCost = tmpCost;
             resultRoute = tmpRoute;
-            stochasticCost = (int)(resultCost * ratio);
+            //stochasticCost = (int)(resultCost * ratio);
             tmpRoute = hillClimbing(resultRoute, resultCost, mapData);
             tmpCost = getCost(tmpRoute, mapData);
         }
         
+        resultRoute = bestRoute;
+        resultCost = bestCost;
 
         // reordering
         int startIdx = 0;
@@ -65,7 +73,8 @@ public class AI{
         }
 
         resultRoute = tmpRoute;
-
+        long stopTime = System.nanoTime();
+        System.out.println("time: " + (stopTime - startTime));
         // File Writing
         resultWriter(resultRoute, mapData, outputFile);
         return;
@@ -108,14 +117,19 @@ public class AI{
     }
     
     private static int[] hillClimbing(int[] resultRoute, int resultCost, int[][] mapData){
-        for(int i = 1; i < resultRoute.length; i++){
-            for(int k = i+1; k < resultRoute.length; k++){
-                int[] newRoute = twoOptSwap(resultRoute, i, k);
-                int newResultCost = getCost(newRoute, mapData);
-                if (newResultCost < resultCost){
-                    return newRoute;
-                }
-            }
+        int[] newRoute = new int[resultRoute.length];
+        Random random = new Random();
+        int swap_a = random.nextInt(resultRoute.length);
+        int swap_b = random.nextInt(resultRoute.length);
+        for(int i = 0; i < resultRoute.length; i++){
+            newRoute[i] = resultRoute[i];
+        }
+        int tmp = newRoute[swap_a];
+        newRoute[swap_a] = newRoute[swap_b];
+        newRoute[swap_b] = tmp;
+        int newResultCost = getCost(newRoute, mapData);
+        if (newResultCost < resultCost){
+            return newRoute;
         }
         return resultRoute;
     }
