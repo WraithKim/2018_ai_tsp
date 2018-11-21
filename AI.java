@@ -36,10 +36,16 @@ public class AI{
         }
         
         // 2. hill-climbing search
-        tmpRoute = hillClimbing(resultRoute, resultCost, mapData);
+        double ratio = 1.01;
+        int stochasticCost = (int)(resultCost * ratio);
+        tmpRoute = hillClimbing(resultRoute, stochasticCost, mapData);
         tmpCost = getCost(tmpRoute, mapData);
-        while(tmpCost < resultCost){
+        while(tmpCost < stochasticCost){
+            // if no change, break;
+            if(tmpCost == resultCost) break;
             resultCost = tmpCost;
+            resultRoute = tmpRoute;
+            stochasticCost = (int)(resultCost * ratio);
             tmpRoute = hillClimbing(resultRoute, resultCost, mapData);
             tmpCost = getCost(tmpRoute, mapData);
         }
