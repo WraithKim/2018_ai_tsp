@@ -19,42 +19,78 @@ public class AI{
         // File Reading
         int [][] mapData = fileLoader(mapSize, inputFile);
         
-        int [] resultRoute = new int[mapSize];
+        int [] resultRoute;
+        int [] tmpRoute;
         int resultCost = 0;
-        
+        int tmpCost = 0;
         // 1. greedy search
-        
-        resultRoute[0] = 0;
-    
+        resultRoute = greedysearch(0, mapSize, mapData);
+        resultCost = getCost(resultRoute, mapData);
         for(int i = 1; i < mapSize; i++){
-            int currentCityNo = resultRoute[i-1];
+            tmpRoute = greedysearch(i, mapSize, mapData);
+            tmpCost = getCost(tmpRoute, mapData);
+            if(tmpCost < resultCost){
+                resultCost = tmpCost;
+            }
+        }
+        
+        // 2. hill-climbing search
+        tmpRoute = hillClimbing(resultRoute, resultCost, mapData);
+        tmpCost = getCost(tmpRoute, mapData);
+        while(tmpCost < resultCost){
+            resultCost = tmpCost;
+            tmpRoute = hillClimbing(resultRoute, resultCost, mapData);
+            tmpCost = getCost(tmpRoute, mapData);
+        }
+        
+
+        // reordering
+        int startIdx = 0;
+        for(int i = 0; i < mapSize; i++){
+            if(resultRoute[i] == 0){
+                startIdx = i;
+                break;
+            }
+        }
+        tmpRoute = new int[mapSize];
+        for(int i = 0; i < mapSize; i++){
+            tmpRoute[i] = resultRoute[(startIdx+i)%mapSize];
+        }
+
+        resultRoute = tmpRoute;
+
+        // File Writing
+        resultWriter(resultCost, resultRoute, outputFile);
+        return;
+    }
+
+    private static int getCost(int[] route, int[][] mapData){
+        int cost = 0;
+        for(int i=0;i<route.length;i++){
+            cost += mapData[route[i]][route[(i+1)%route.length]];
+        }
+        return cost;
+    }
+
+    private static int[] greedysearch(int start, int mapSize, int[][] mapData){
+        int[] route = new int[mapSize];
+        route[0] = start;
+        for(int i = 1; i < route.length; i++){
+            int currentCityNo = route[i-1];
             int minAdjacentEdgeCost = 1000;
             int minAdjacentEdgeDst = 0;
             // find least adjacent edge
             for(int j = 0; j < mapSize; j++){
                 if(j == currentCityNo) continue;
-                if(mapData[currentCityNo][j] < minAdjacentEdgeCost && !contains(resultRoute, j, i)){
+                if(mapData[currentCityNo][j] < minAdjacentEdgeCost && !contains(route, j, i)){
                     minAdjacentEdgeCost = mapData[currentCityNo][j];
                     minAdjacentEdgeDst = j;
                 }
             }
             
-            resultRoute[i] = minAdjacentEdgeDst;
+            route[i] = minAdjacentEdgeDst;
         }
-        for(int i=0;i<mapSize;i++){
-            resultCost += mapData[resultRoute[i]][resultRoute[(i+1)%mapSize]];
-        }
-        
-        // 2. hill-climbing search
-        int tmpCost = hillClimbing(resultRoute, resultCost, mapData);
-        while(tmpCost < resultCost){
-            resultCost = tmpCost;
-            tmpCost = hillClimbing(resultRoute, resultCost, mapData);
-        }
-        
-        // File Writing
-        resultWriter(resultCost, resultRoute, outputFile);
-        return;
+        return route;
     }
 
     private static boolean contains(int[] array, int match, int end){
@@ -64,21 +100,17 @@ public class AI{
         return false;
     }
     
-    private static int hillClimbing(int[] resultRoute, int resultCost, int[][] mapData){
+    private static int[] hillClimbing(int[] resultRoute, int resultCost, int[][] mapData){
         for(int i = 1; i < resultRoute.length; i++){
             for(int k = i+1; k < resultRoute.length; k++){
                 int[] newRoute = twoOptSwap(resultRoute, i, k);
-                int newResultCost = 0;
-                for(int j=0;j<resultRoute.length;j++){
-                    newResultCost += mapData[newRoute[j]][newRoute[(j+1)%resultRoute.length]];
-                }
+                int newResultCost = getCost(newRoute, mapData);
                 if (newResultCost < resultCost){
-                    resultRoute = newRoute;
-                    return newResultCost;
+                    return newRoute;
                 }
             }
         }
-        return resultCost;
+        return resultRoute;
     }
     
     private static int[] twoOptSwap(int[] existing_route, int swap_start, int swap_end){
