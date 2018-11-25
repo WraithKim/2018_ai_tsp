@@ -36,28 +36,17 @@ public class AI{
         }
         
         // 2. hill-climbing search
-        //double ratio = 1.01;
-        //int stochasticCost = (int)(resultCost * ratio);
-        int[] bestRoute = resultRoute;
-        int bestCost = resultCost;
-        tmpRoute = hillClimbing(resultRoute, stochasticCost, mapData);
+        long timeLimit = startTime + 30000000000L;
+        tmpRoute = hillClimbing(resultRoute, resultCost, mapData);
         tmpCost = getCost(tmpRoute, mapData);
-        while(tmpCost < resultCost){
-            // if no change, break;
-            if(tmpCost == resultCost) break;
-            if(tmpCost < bestCost){
-                bestRoute = tmpRoute;
-                bestCost = tmpCost;
+        while(System.nanoTime() < timeLimit){
+            if (tmpCost < resultCost) {
+                resultCost = tmpCost;
+                resultRoute = tmpRoute;
             }
-            resultCost = tmpCost;
-            resultRoute = tmpRoute;
-            //stochasticCost = (int)(resultCost * ratio);
             tmpRoute = hillClimbing(resultRoute, resultCost, mapData);
             tmpCost = getCost(tmpRoute, mapData);
         }
-        
-        resultRoute = bestRoute;
-        resultCost = bestCost;
 
         // reordering
         int startIdx = 0;
@@ -74,7 +63,7 @@ public class AI{
 
         resultRoute = tmpRoute;
         long stopTime = System.nanoTime();
-        System.out.println("time: " + (stopTime - startTime));
+        System.out.println("time: " + ((stopTime - startTime)/1000000000));
         // File Writing
         resultWriter(resultRoute, mapData, outputFile);
         return;
@@ -117,16 +106,10 @@ public class AI{
     }
     
     private static int[] hillClimbing(int[] resultRoute, int resultCost, int[][] mapData){
-        int[] newRoute = new int[resultRoute.length];
         Random random = new Random();
-        int swap_a = random.nextInt(resultRoute.length);
-        int swap_b = random.nextInt(resultRoute.length);
-        for(int i = 0; i < resultRoute.length; i++){
-            newRoute[i] = resultRoute[i];
-        }
-        int tmp = newRoute[swap_a];
-        newRoute[swap_a] = newRoute[swap_b];
-        newRoute[swap_b] = tmp;
+        int swap_start = random.nextInt(resultRoute.length);
+        int swap_end = random.nextInt(resultRoute.length);
+        int[] newRoute = twoOptSwap(resultRoute, swap_start, swap_end);
         int newResultCost = getCost(newRoute, mapData);
         if (newResultCost < resultCost){
             return newRoute;
