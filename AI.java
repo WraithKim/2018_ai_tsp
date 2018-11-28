@@ -15,7 +15,6 @@ public class AI{
         File inputFile = new File(args[0]);
         File outputFile = new File(args[1]);
         int mapSize = 1000; // Integer.parseInt(args[3]);
-
         // File Reading
         int [][] mapData = fileLoader(mapSize, inputFile);
         
@@ -38,30 +37,13 @@ public class AI{
         
         // 2. hill-climbing search
         long timeLimit = startTime + 30000000000L;
-        tmpRoute = hillClimbing(resultRoute, resultCost, mapData);
-        tmpCost = getCost(tmpRoute, mapData);
-        while(System.nanoTime() < timeLimit){
-            if (tmpCost < resultCost) {
-                resultCost = tmpCost;
-                resultRoute = tmpRoute;
-            }
-            tmpRoute = hillClimbing(resultRoute, resultCost, mapData);
-        long limitTime = startTime + 30000000000L;
-        double acceptanceRatio = 1.005;
-        int[] bestRoute = resultRoute;
-        tmpRoute = hillClimbing(resultRoute, (int)(resultCost * acceptanceRatio), mapData);
-        tmpCost = getCost(tmpRoute, mapData);
-        while(System.nanoTime() < limitTime){
-            if(tmpCost < resultCost){
-                bestRoute = tmpRoute;
-            }
+        do{
+            tmpRoute = stochasticHillClimbing(resultRoute, resultCost, mapData);
+            tmpCost = getCost(tmpRoute, mapData);
             resultRoute = tmpRoute;
             resultCost = tmpCost;
-            tmpRoute = hillClimbing(resultRoute, (int)(resultCost * acceptanceRatio), mapData);
-            tmpCost = getCost(tmpRoute, mapData);
-        }
+        }while(System.nanoTime() < timeLimit);
 
-        resultRoute = bestRoute;
         // reordering
         int startIdx = 0;
         for(int i = 0; i < mapSize; i++){
@@ -76,8 +58,7 @@ public class AI{
         }
 
         resultRoute = tmpRoute;
-        long stopTime = System.nanoTime();
-        System.out.println("time: " + ((stopTime - startTime)/1000000000));
+        System.out.println("time: " + ((System.nanoTime() - startTime)/1000000000));
         // File Writing
         resultWriter(resultRoute, mapData, outputFile);
         return;
@@ -115,14 +96,16 @@ public class AI{
         return route;
     }
     
-    private static int[] hillClimbing(int[] resultRoute, int resultCost, int[][] mapData){
+    private static int[] stochasticHillClimbing(int[] resultRoute, int resultCost, int[][] mapData){
         Random random = new Random();
         int swapStart, swapEnd, tmpCost;
         int[] tmpRoute;
-        final int neighbors = 10;
+        final int neighbors = 31;
         int[][] newRoutes = new int[neighbors][];
-        int count = 0;
-        while(count < neighbors){
+        newRoutes[0] = resultRoute;
+        // 모든 시도를 해도 찾지 못할 경우 맨 아래 줄에서 resultRoute를 반환함.
+        int count = 1;
+        for(int trial = 0; trial < 1500; trial++){
             do{
                 swapStart = random.nextInt(resultRoute.length);
                 swapEnd = random.nextInt(resultRoute.length);
@@ -133,10 +116,13 @@ public class AI{
             if(tmpCost < resultCost){
                 newRoutes[count] = tmpRoute;
                 count++;
+                if (count == neighbors){
+                    return newRoutes[random.nextInt(neighbors)];
+                }
             }
         }
 
-        return newRoutes[random.nextInt(neighbors)];
+        return newRoutes[random.nextInt(count)];
     }
     
     private static int[] twoOptSwap(int[] existingRoute, int swapStart, int swapEnd){

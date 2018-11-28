@@ -12,7 +12,7 @@
             "console": "internalConsole",
             "stopOnEntry": false,
             "mainClass": "AI",
-            "args": ["tsp1000.csv", "result_stochastic7.txt"]
+            "args": ["tsp1000.csv", "result_stochastic5.txt"]
         }
     ]
 }
