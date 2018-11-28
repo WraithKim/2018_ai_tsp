@@ -37,14 +37,17 @@ public class AI{
             }
         }
         
-        // 2. hill-climbing search
+        /* // 2. hill-climbing search
         long timeLimit = startTime + 30000000000L;
         do{
             tmpRoute = stochasticHillClimbing(resultRoute, resultCost, mapData);
             tmpCost = getCost(tmpRoute, mapData);
             resultRoute = tmpRoute;
             resultCost = tmpCost;
-        }while(System.nanoTime() < timeLimit);
+        }while(System.nanoTime() < timeLimit); */
+
+        // 2. simulated annealing
+        resultRoute = simulatedAnnealing(resultRoute, resultCost, mapData);
 
         // reordering
         int startIdx = 0;
@@ -118,6 +121,46 @@ public class AI{
         return route;
     }
     
+    private static int[] simulatedAnnealing(int[] resultRoute, int resultCost, int[][] mapData){
+        Random random = new Random();
+        double temperature = 3.899;
+        double coolingRatio = 0.9999998;
+        int[] bestRoute = resultRoute;
+        int bestCost = resultCost;
+        
+        int[] tmpRoute;
+        int tmpCost, swapStart, swapEnd;
+
+        while (temperature > 1) {
+            do{
+                swapStart = random.nextInt(resultRoute.length);
+                swapEnd = random.nextInt(resultRoute.length);
+            }while(swapStart >= swapEnd);
+            
+            tmpRoute = twoOptSwap(resultRoute, swapStart, swapEnd);
+            tmpCost = getCost(tmpRoute, mapData);
+            if(random.nextDouble() < getAcceptanceProbability(tmpCost, resultCost, temperature)){
+                resultRoute = tmpRoute;
+                resultCost = tmpCost;
+            }
+            if(resultCost < bestCost){
+                bestRoute = resultRoute;
+                bestCost = resultCost;
+            }
+
+            temperature *= coolingRatio;
+        }
+
+        return bestRoute;
+    }
+
+    private static double getAcceptanceProbability(int tmpCost, int resultCost, double temperature){
+        if (tmpCost < resultCost){
+            return 1.0;
+        }
+        return Math.exp((resultCost - tmpCost) / temperature);
+    }
+
     private static int[] stochasticHillClimbing(int[] resultRoute, int resultCost, int[][] mapData){
         Random random = new Random();
         int swapStart, swapEnd, tmpCost;
