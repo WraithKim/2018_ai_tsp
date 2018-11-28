@@ -7,6 +7,7 @@ Example call cmd line
 */
 import java.io.*;
 import java.util.Random;
+import java.util.BitSet;
 
 public class AI{
     public static void main(String[] args){
@@ -45,9 +46,22 @@ public class AI{
                 resultRoute = tmpRoute;
             }
             tmpRoute = hillClimbing(resultRoute, resultCost, mapData);
+        long limitTime = startTime + 30000000000L;
+        double acceptanceRatio = 1.005;
+        int[] bestRoute = resultRoute;
+        tmpRoute = hillClimbing(resultRoute, (int)(resultCost * acceptanceRatio), mapData);
+        tmpCost = getCost(tmpRoute, mapData);
+        while(System.nanoTime() < limitTime){
+            if(tmpCost < resultCost){
+                bestRoute = tmpRoute;
+            }
+            resultRoute = tmpRoute;
+            resultCost = tmpCost;
+            tmpRoute = hillClimbing(resultRoute, (int)(resultCost * acceptanceRatio), mapData);
             tmpCost = getCost(tmpRoute, mapData);
         }
 
+        resultRoute = bestRoute;
         // reordering
         int startIdx = 0;
         for(int i = 0; i < mapSize; i++){
@@ -78,8 +92,10 @@ public class AI{
     }
 
     private static int[] greedysearch(int start, int mapSize, int[][] mapData){
+        BitSet visited = new BitSet(mapSize);
         int[] route = new int[mapSize];
         route[0] = start;
+        visited.set(start);
         for(int i = 1; i < route.length; i++){
             int currentCityNo = route[i-1];
             int minAdjacentEdgeCost = 1000;
@@ -87,47 +103,53 @@ public class AI{
             // find least adjacent edge
             for(int j = 0; j < mapSize; j++){
                 if(j == currentCityNo) continue;
-                if(mapData[currentCityNo][j] < minAdjacentEdgeCost && !contains(route, j, i)){
+                if(mapData[currentCityNo][j] < minAdjacentEdgeCost && !visited.get(j)){
                     minAdjacentEdgeCost = mapData[currentCityNo][j];
                     minAdjacentEdgeDst = j;
                 }
             }
             
             route[i] = minAdjacentEdgeDst;
+            visited.set(minAdjacentEdgeDst);
         }
         return route;
-    }
-
-    private static boolean contains(int[] array, int match, int end){
-        for(int i = 0; i < end; i++){
-            if(array[i] == match) return true;
-        }
-        return false;
     }
     
     private static int[] hillClimbing(int[] resultRoute, int resultCost, int[][] mapData){
         Random random = new Random();
-        int swap_start = random.nextInt(resultRoute.length);
-        int swap_end = random.nextInt(resultRoute.length);
-        int[] newRoute = twoOptSwap(resultRoute, swap_start, swap_end);
-        int newResultCost = getCost(newRoute, mapData);
-        if (newResultCost < resultCost){
-            return newRoute;
+        int swapStart, swapEnd, tmpCost;
+        int[] tmpRoute;
+        final int neighbors = 10;
+        int[][] newRoutes = new int[neighbors][];
+        int count = 0;
+        while(count < neighbors){
+            do{
+                swapStart = random.nextInt(resultRoute.length);
+                swapEnd = random.nextInt(resultRoute.length);
+            }while(swapStart >= swapEnd);
+            
+            tmpRoute = twoOptSwap(resultRoute, swapStart, swapEnd);
+            tmpCost = getCost(tmpRoute, mapData);
+            if(tmpCost < resultCost){
+                newRoutes[count] = tmpRoute;
+                count++;
+            }
         }
-        return resultRoute;
+
+        return newRoutes[random.nextInt(neighbors)];
     }
     
-    private static int[] twoOptSwap(int[] existing_route, int swap_start, int swap_end){
-        int [] new_route = new int[existing_route.length];
-        for(int i = 0; i < existing_route.length; i++){
-            if(i >= swap_start && i <= swap_end){
-                new_route[i] = existing_route[swap_end - (i - swap_start)];
+    private static int[] twoOptSwap(int[] existingRoute, int swapStart, int swapEnd){
+        int [] newRoute = new int[existingRoute.length];
+        for(int i = 0; i < existingRoute.length; i++){
+            if(i >= swapStart && i <= swapEnd){
+                newRoute[i] = existingRoute[swapEnd - (i - swapStart)];
             }
             else{
-                new_route[i] = existing_route[i];
+                newRoute[i] = existingRoute[i];
             }
         }
-        return new_route;
+        return newRoute;
     }
 
     public static int [][] fileLoader(int nodeSize, File iFile){
