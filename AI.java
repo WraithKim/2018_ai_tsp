@@ -23,6 +23,8 @@ public class AI{
         int resultCost = 0;
         int tmpCost = 0;
         long startTime = System.nanoTime();
+        // resultRoute = knuthShuffle(mapSize);
+        // resultCost = getCost(resultRoute, mapData);
         // 1. greedy search
         resultRoute = greedysearch(0, mapSize, mapData);
         resultCost = getCost(resultRoute, mapData);
@@ -70,6 +72,26 @@ public class AI{
             cost += mapData[route[i]][route[(i+1)%route.length]];
         }
         return cost;
+    }
+
+    private static int[] knuthShuffle(int mapSize){
+        // 초기화
+        int [] newRoute = new int[mapSize];
+        for(int i = 0; i < mapSize; i++){
+            newRoute[i] = i;
+        }
+
+        // 셔플
+        Random random = new Random();
+        int tmp, swapIdx = 0;
+        for(int i = mapSize - 1; i > 0; i--){
+            swapIdx = random.nextInt(i + 1);
+            tmp = newRoute[i];
+            newRoute[i] = newRoute[swapIdx];
+            newRoute[swapIdx] = tmp;
+        }
+
+        return newRoute;
     }
 
     private static int[] greedysearch(int start, int mapSize, int[][] mapData){
