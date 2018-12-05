@@ -123,7 +123,7 @@ public class AI{
     
     private static int[] simulatedAnnealing(int[] resultRoute, int resultCost, int[][] mapData){
         Random random = new Random();
-        double temperature = 3.899;
+        double temperature = 3.898;
         double coolingRatio = 0.9999998;
         int[] bestRoute = resultRoute;
         int bestCost = resultCost;
