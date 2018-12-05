@@ -18,17 +18,19 @@ public class AI{
         // File Reading
         int [][] mapData = fileLoader(mapSize, inputFile);
         
-        int [] resultRoute;
-        int [] tmpRoute;
-        int resultCost = 0;
+        int [] tmpRoute = null;
         int tmpCost = 0;
         long startTime = System.nanoTime();
-        // resultRoute = knuthShuffle(mapSize);
-        // resultCost = getCost(resultRoute, mapData);
         
         // 1. initialize
         // 50개의 초기 답 구하기 + 서로 다른지 확인하기
-        
+        // FIXME: 굳이 확인해야 하나? 겹칠 확률이 너무 적은데;;;;
+        final int POPULATION_SIZE = 50;
+        ArrayList<Path> population = new ArrayList<>(POPULATION_SIZE);
+        for(int i = 0; i < POPULATION_SIZE; i++){
+            tmpRoute = knuthShuffle(mapSize, tmpRoute);
+            population.append(new Path(tmpRoute, mapData));
+        }
 
         // 2. mutation
         // 두 답을 섞고 feasible하지 않은 부분을 고치기
@@ -64,11 +66,18 @@ public class AI{
         return cost;
     }
 
-    private static int[] knuthShuffle(int mapSize){
+    private static int[] knuthShuffle(int mapSize, int[] initialRoute){
         // 초기화
         int [] newRoute = new int[mapSize];
-        for(int i = 0; i < mapSize; i++){
-            newRoute[i] = i;
+
+        if (initialRoute != null){
+            for(int i = 0; i < mapSize; i++){
+                newRoute[i] = initialRoute[i];
+            }
+        } else {
+            for(int i = 0; i < mapSize; i++){
+                newRoute[i] = i;
+            }
         }
 
         // 셔플
