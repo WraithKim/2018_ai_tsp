@@ -27,12 +27,14 @@ public class AI{
         // resultCost = getCost(resultRoute, mapData);
         
         // 1. initialize
-
-
+        // 50개의 초기 답 구하기 + 서로 다른지 확인하기
+        
 
         // 2. mutation
+        // 두 답을 섞고 feasible하지 않은 부분을 고치기
 
         // 3. natural selection
+        // population을 초과할 경우, 가장 좋은 답 50개만 남기기
 
         // reordering
         int startIdx = 0;
@@ -198,7 +200,10 @@ class Path implements Comparable<Path>{
         return this.cost;
     }
 
+    @Override
     public int compareTo(Path otherPath){
         return Integer.compare(this.cost, otherPath.getCost());
     }
+
+    //TODO: equals 구현
 }
