@@ -25,29 +25,14 @@ public class AI{
         long startTime = System.nanoTime();
         // resultRoute = knuthShuffle(mapSize);
         // resultCost = getCost(resultRoute, mapData);
-        // 1. greedy search
-        resultRoute = greedysearch(0, mapSize, mapData);
-        resultCost = getCost(resultRoute, mapData);
-        for(int i = 1; i < mapSize; i++){
-            tmpRoute = greedysearch(i, mapSize, mapData);
-            tmpCost = getCost(tmpRoute, mapData);
-            if(tmpCost < resultCost){
-                resultCost = tmpCost;
-                resultRoute = tmpRoute;
-            }
-        }
         
-        /* // 2. hill-climbing search
-        long timeLimit = startTime + 30000000000L;
-        do{
-            tmpRoute = stochasticHillClimbing(resultRoute, resultCost, mapData);
-            tmpCost = getCost(tmpRoute, mapData);
-            resultRoute = tmpRoute;
-            resultCost = tmpCost;
-        }while(System.nanoTime() < timeLimit); */
+        // 1. initialize
 
-        // 2. simulated annealing
-        resultRoute = simulatedAnnealing(resultRoute, resultCost, mapData);
+
+
+        // 2. mutation
+
+        // 3. natural selection
 
         // reordering
         int startIdx = 0;
@@ -120,88 +105,6 @@ public class AI{
         }
         return route;
     }
-    
-    private static int[] simulatedAnnealing(int[] resultRoute, int resultCost, int[][] mapData){
-        Random random = new Random();
-        double temperature = 3.898;
-        double coolingRatio = 0.9999998;
-        int[] bestRoute = resultRoute;
-        int bestCost = resultCost;
-        
-        int[] tmpRoute;
-        int tmpCost, swapStart, swapEnd;
-
-        while (temperature > 1) {
-            do{
-                swapStart = random.nextInt(resultRoute.length);
-                swapEnd = random.nextInt(resultRoute.length);
-            }while(swapStart >= swapEnd);
-            
-            tmpRoute = twoOptSwap(resultRoute, swapStart, swapEnd);
-            tmpCost = getCost(tmpRoute, mapData);
-            if(random.nextDouble() < getAcceptanceProbability(tmpCost, resultCost, temperature)){
-                resultRoute = tmpRoute;
-                resultCost = tmpCost;
-            }
-            if(resultCost < bestCost){
-                bestRoute = resultRoute;
-                bestCost = resultCost;
-            }
-
-            temperature *= coolingRatio;
-        }
-
-        return bestRoute;
-    }
-
-    private static double getAcceptanceProbability(int tmpCost, int resultCost, double temperature){
-        if (tmpCost < resultCost){
-            return 1.0;
-        }
-        return Math.exp((resultCost - tmpCost) / temperature);
-    }
-
-    private static int[] stochasticHillClimbing(int[] resultRoute, int resultCost, int[][] mapData){
-        Random random = new Random();
-        int swapStart, swapEnd, tmpCost;
-        int[] tmpRoute;
-        final int neighbors = 31;
-        int[][] newRoutes = new int[neighbors][];
-        newRoutes[0] = resultRoute;
-        // 모든 시도를 해도 찾지 못할 경우 맨 아래 줄에서 resultRoute를 반환함.
-        int count = 1;
-        for(int trial = 0; trial < 1500; trial++){
-            do{
-                swapStart = random.nextInt(resultRoute.length);
-                swapEnd = random.nextInt(resultRoute.length);
-            }while(swapStart >= swapEnd);
-            
-            tmpRoute = twoOptSwap(resultRoute, swapStart, swapEnd);
-            tmpCost = getCost(tmpRoute, mapData);
-            if(tmpCost < resultCost){
-                newRoutes[count] = tmpRoute;
-                count++;
-                if (count == neighbors){
-                    return newRoutes[random.nextInt(neighbors)];
-                }
-            }
-        }
-
-        return newRoutes[random.nextInt(count)];
-    }
-    
-    private static int[] twoOptSwap(int[] existingRoute, int swapStart, int swapEnd){
-        int [] newRoute = new int[existingRoute.length];
-        for(int i = 0; i < existingRoute.length; i++){
-            if(i >= swapStart && i <= swapEnd){
-                newRoute[i] = existingRoute[swapEnd - (i - swapStart)];
-            }
-            else{
-                newRoute[i] = existingRoute[i];
-            }
-        }
-        return newRoute;
-    }
 
     public static int [][] fileLoader(int nodeSize, File iFile){
         int [][] RET = new int[nodeSize][nodeSize];
@@ -264,5 +167,38 @@ public class AI{
             e.printStackTrace();
         }
         return 0;
+    }
+}
+
+class Path implements Comparable<Path>{
+    private int[] route;
+    private int[][] mapData;
+    private int cost;
+
+    private int calculateCost(int[] route, int[][] mapData){
+        int cost = 0;
+        for(int i = 0; i < route.length; i++){
+            cost += mapData[route[i]][route[(i+1)%route.length]];
+        }
+        return cost;
+    }
+
+    public Path(int[] route, int[][] mapData){
+        // 경로 검증은 고민하지 않음
+        this.route = route;
+        this.mapData = mapData;
+        this.cost = calculateCost(this.route, this.mapData);
+    }
+
+    public int[] getRoute(){
+        return this.route;
+    }
+
+    public int getCost(){
+        return this.cost;
+    }
+
+    public int compareTo(Path otherPath){
+        return Integer.compare(this.cost, otherPath.getCost());
     }
 }
