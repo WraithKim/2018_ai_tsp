@@ -14,30 +14,44 @@ public class AI{
         // Assume AI.class [MapDataFilePath] [OutputFilePath]
         File inputFile = new File(args[0]);
         File outputFile = new File(args[1]);
-        int mapSize = 1000; // Integer.parseInt(args[3]);
+        final int mapSize = 1000;
         // File Reading
         int [][] mapData = fileLoader(mapSize, inputFile);
         
         int [] tmpRoute = null;
         int tmpCost = 0;
         long startTime = System.nanoTime();
+        final int maxTrial = 1000;
         
         // 1. initialize
         // 50개의 초기 답 구하기 + 서로 다른지 확인하기
         // FIXME: 굳이 확인해야 하나? 겹칠 확률이 너무 적은데;;;;
         final int POPULATION_SIZE = 50;
-        ArrayList<Path> population = new ArrayList<>(POPULATION_SIZE);
+        // TODO: create PathComparator
+        PriorityQueue<Path> population = new PriorityQueue<>(POPULATION_SIZE, );
         for(int i = 0; i < POPULATION_SIZE; i++){
             tmpRoute = knuthShuffle(mapSize, tmpRoute);
-            population.append(new Path(tmpRoute, mapData));
+            population.add(new Path(tmpRoute, mapData));
         }
 
         // 2. mutation
-        // 두 답을 섞고 feasible하지 않은 부분을 고치기
+        
+        // 답을 만들 부모 선정
+        ParentSelector parentSelector = new ParentSelector(population.toArray());
+        // 답 만들기, 절반 crossover
+        // 답이 feasible한지 검사
+        // 답 고치기
+        // population에 넣기
 
         // 3. natural selection
         // population을 초과할 경우, 가장 좋은 답 50개만 남기기
-
+        while (population.size() > 50){
+            population.poll();
+        }
+        
+        // poll을 쓰면 안됨 제일 작은걸 꺼내야함
+        //int[] resultRoute = population.poll().getRoute();
+        
         // reordering
         int startIdx = 0;
         for(int i = 0; i < mapSize; i++){
@@ -181,7 +195,7 @@ public class AI{
     }
 }
 
-class Path implements Comparable<Path>{
+class Path{
     private int[] route;
     private int[][] mapData;
     private int cost;
@@ -209,10 +223,45 @@ class Path implements Comparable<Path>{
         return this.cost;
     }
 
-    @Override
-    public int compareTo(Path otherPath){
-        return Integer.compare(this.cost, otherPath.getCost());
-    }
-
     //TODO: equals 구현
+}
+
+class ParentSelector {
+    private Path[] parents;
+    private BitSet selected;
+    private int totalCost;
+    
+    public ParentSelector(Path[] parents){
+        this.parents = parents;
+        this.selected = new BitSet(parents.length);
+    }
+    
+    public Path getRandomParent(){
+        // 만약 모든 부모가 선택되었다면 null 반환
+        if(selected.cardinality() == parents.length) return null;
+        // i+1부터 bit탐색을 시작함.
+        int i = -1;
+        boolean reverseSearch = false;
+        while(true){
+            if(!reverseSearch){
+                i = selected.nextClearBit(i+1);
+            }else{
+                i = selected.previousClearBit(i-1);
+            }
+            // 위 조건을 만족하는 비트를 찾지 못하면 검색 방향을 뒤집음
+            // 역방향으로 검색하다가 이 조건에 도달한 경우엔 i = -1로 초기화 해야 하는데 이미 -1이 되어 있음.
+            if(i == -1){
+                if(!reverseSearch){
+                    i = parents.length;
+                }
+                reverseSearch = !reverseSearch;
+                continue;
+            }
+            
+            if((Math.random() < (1.0 - (double)(parents[i].getCost/totalCost)))){
+                selected.set(i);
+                return parents[i];
+            }
+        }
+    }
 }
