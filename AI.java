@@ -5,9 +5,10 @@ Example call cmd line
 
     @2018-11-06, in AI class, cau MI lab, 2018.
 */
+import com.sun.org.apache.bcel.internal.generic.POP;
+
 import java.io.*;
-import java.util.Random;
-import java.util.BitSet;
+import java.util.*;
 
 public class AI{
     public static void main(String[] args){
@@ -17,41 +18,54 @@ public class AI{
         final int mapSize = 1000;
         // File Reading
         int [][] mapData = fileLoader(mapSize, inputFile);
-        
+
         int [] tmpRoute = null;
-        int tmpCost = 0;
         long startTime = System.nanoTime();
         final int maxTrial = 1000;
-        
+        PathCostComparator comparator = new PathCostComparator();
+
         // 1. initialize
         // 50개의 초기 답 구하기 + 서로 다른지 확인하기
-        // FIXME: 굳이 확인해야 하나? 겹칠 확률이 너무 적은데;;;;
         final int POPULATION_SIZE = 50;
-        // TODO: create PathComparator
-        PriorityQueue<Path> population = new PriorityQueue<>(POPULATION_SIZE, );
+        TreeSet<Path> population = new TreeSet<>(comparator);
         for(int i = 0; i < POPULATION_SIZE; i++){
             tmpRoute = knuthShuffle(mapSize, tmpRoute);
             population.add(new Path(tmpRoute, mapData));
+//            population.add(new Path(greedysearch(i, mapSize, mapData), mapData));
+        }
+        /*for(int i = 50; i < mapSize; i++){
+            Path tmpPath = new Path(greedysearch(i, mapSize, mapData), mapData);
+            if(tmpPath.getCost() < population.last().getCost()) {
+                population.pollLast();
+                population.add(tmpPath);
+            }
+        }*/
+
+        long timeLimit = startTime + 30000000000L;
+        while (population.first().getCost() > 4200 || System.nanoTime() < timeLimit){
+            // 2. offspring
+            // 답을 만들 부모 선정
+            while(population.size() > POPULATION_SIZE - 20){
+                population.pollLast();
+            }
+            ParentSelector parentSelector = new ParentSelector(population.toArray(new Path[0]));
+
+            while (population.size() < POPULATION_SIZE){
+                // 답 만들기, 절반 crossover
+                Path parent1 = parentSelector.getRandomParent();
+                Path parent2 = parentSelector.getRandomParent();
+                Path child1 = crossover(parent1, parent2);
+                Path child2 = crossover(parent2, parent1);
+
+                // 3. natural selection
+                population.add(child1);
+                population.add(child2);
+            }
         }
 
-        // 2. mutation
-        
-        // 답을 만들 부모 선정
-        ParentSelector parentSelector = new ParentSelector(population.toArray());
-        // 답 만들기, 절반 crossover
-        // 답이 feasible한지 검사
-        // 답 고치기
-        // population에 넣기
+        // 4. return result
+        int[] resultRoute = population.first().getRoute();
 
-        // 3. natural selection
-        // population을 초과할 경우, 가장 좋은 답 50개만 남기기
-        while (population.size() > 50){
-            population.poll();
-        }
-        
-        // poll을 쓰면 안됨 제일 작은걸 꺼내야함
-        //int[] resultRoute = population.poll().getRoute();
-        
         // reordering
         int startIdx = 0;
         for(int i = 0; i < mapSize; i++){
@@ -69,15 +83,43 @@ public class AI{
         System.out.println("time: " + ((System.nanoTime() - startTime)/1000000000));
         // File Writing
         resultWriter(resultRoute, mapData, outputFile);
-        return;
     }
 
-    private static int getCost(int[] route, int[][] mapData){
-        int cost = 0;
-        for(int i=0;i<route.length;i++){
-            cost += mapData[route[i]][route[(i+1)%route.length]];
+    private static Path crossover(Path parent1, Path parent2){
+        int[] parent1Route = parent1.getRoute();
+        int[] parent2Route = parent2.getRoute();
+        int halfPathLength = parent1Route.length / 2;
+        int[] child = new int[parent1Route.length];
+        Random random = new Random();
+        BitSet visited = new BitSet(parent1Route.length);
+        for(int i = 0; i < halfPathLength; i++){
+            visited.set(parent1Route[i]);
+            child[i] = parent1Route[i];
         }
-        return cost;
+        for(int i = halfPathLength; i < parent1Route.length; i++){
+            if(visited.get(parent2Route[i])){
+                int fromIndex = random.nextInt(parent1Route.length);
+                int alternativeNode = visited.previousClearBit(fromIndex);
+                if(alternativeNode == -1){
+                    alternativeNode = visited.nextClearBit(fromIndex);
+                }
+                visited.set(alternativeNode);
+                child[i] = alternativeNode;
+            } else {
+                visited.set(parent2Route[i]);
+                child[i] = parent2Route[i];
+            }
+        }
+
+        // mutation - exchange
+        if(random.nextDouble() < 0.001){
+            int swapA = random.nextInt(child.length);
+            int swapB = random.nextInt(child.length);
+            int tmp = child[swapA];
+            child[swapA] = child[swapB];
+            child[swapB] = tmp;
+        }
+        return new Path(child, parent1.getMapData());
     }
 
     private static int[] knuthShuffle(int mapSize, int[] initialRoute){
@@ -85,9 +127,7 @@ public class AI{
         int [] newRoute = new int[mapSize];
 
         if (initialRoute != null){
-            for(int i = 0; i < mapSize; i++){
-                newRoute[i] = initialRoute[i];
-            }
+            System.arraycopy(initialRoute, 0, newRoute, 0, mapSize);
         } else {
             for(int i = 0; i < mapSize; i++){
                 newRoute[i] = i;
@@ -96,9 +136,9 @@ public class AI{
 
         // 셔플
         Random random = new Random();
-        int tmp, swapIdx = 0;
+        int tmp, swapIdx;
         for(int i = mapSize - 1; i > 0; i--){
-            swapIdx = random.nextInt(i + 1);
+            swapIdx = random.nextInt(i+1);
             tmp = newRoute[i];
             newRoute[i] = newRoute[swapIdx];
             newRoute[swapIdx] = tmp;
@@ -124,7 +164,7 @@ public class AI{
                     minAdjacentEdgeDst = j;
                 }
             }
-            
+
             route[i] = minAdjacentEdgeDst;
             visited.set(minAdjacentEdgeDst);
         }
@@ -202,66 +242,79 @@ class Path{
 
     private int calculateCost(int[] route, int[][] mapData){
         int cost = 0;
-        for(int i = 0; i < route.length; i++){
-            cost += mapData[route[i]][route[(i+1)%route.length]];
+        int loopLimit = route.length-1;
+        for(int i = 0; i < loopLimit; i++){
+            cost += mapData[route[i]][route[i+1]];
         }
+        cost += mapData[route[loopLimit]][route[0]];
         return cost;
     }
 
-    public Path(int[] route, int[][] mapData){
-        // 경로 검증은 고민하지 않음
+    Path(int[] route, int[][] mapData){
         this.route = route;
         this.mapData = mapData;
         this.cost = calculateCost(this.route, this.mapData);
     }
 
-    public int[] getRoute(){
+    int[] getRoute(){
         return this.route;
     }
 
-    public int getCost(){
+    int getCost(){
         return this.cost;
     }
 
-    //TODO: equals 구현
+    int[][] getMapData() {
+        return mapData;
+    }
 }
 
 class ParentSelector {
     private Path[] parents;
-    private BitSet selected;
-    private int totalCost;
-    
-    public ParentSelector(Path[] parents){
+    private int minCost;
+    private int maxCost;
+    private double[] fitnessValues;
+    private double totalFitnessValues;
+
+    ParentSelector(Path[] parents){
         this.parents = parents;
-        this.selected = new BitSet(parents.length);
+        initializeCosts(parents);
+        initializeFitnessValue(parents, minCost, maxCost);
     }
-    
-    public Path getRandomParent(){
-        // 만약 모든 부모가 선택되었다면 null 반환
-        if(selected.cardinality() == parents.length) return null;
-        // i+1부터 bit탐색을 시작함.
-        int i = -1;
-        boolean reverseSearch = false;
-        while(true){
-            if(!reverseSearch){
-                i = selected.nextClearBit(i+1);
-            }else{
-                i = selected.previousClearBit(i-1);
-            }
-            // 위 조건을 만족하는 비트를 찾지 못하면 검색 방향을 뒤집음
-            // 역방향으로 검색하다가 이 조건에 도달한 경우엔 i = -1로 초기화 해야 하는데 이미 -1이 되어 있음.
-            if(i == -1){
-                if(!reverseSearch){
-                    i = parents.length;
-                }
-                reverseSearch = !reverseSearch;
-                continue;
-            }
-            
-            if((Math.random() < (1.0 - (double)(parents[i].getCost/totalCost)))){
-                selected.set(i);
+
+    private void initializeCosts(Path[] parents){
+        this.maxCost = this.minCost = parents[0].getCost();
+        for(Path path : parents){
+            this.minCost = Math.min(path.getCost(), this.minCost);
+            this.maxCost = Math.max(path.getCost(), this.maxCost);
+        }
+    }
+
+    private void initializeFitnessValue(Path[] parents, int minCost, int maxCost){
+        totalFitnessValues = 0.0;
+        fitnessValues = new double[parents.length];
+        for(int i = 0; i < parents.length; i++){
+            fitnessValues[i] = ((maxCost - parents[i].getCost()) + (maxCost - minCost))/3.0;
+            totalFitnessValues += fitnessValues[i];
+        }
+    }
+
+    Path getRandomParent(){
+        double selectedPoint = Math.random() * totalFitnessValues;
+        double bound = 0.0;
+        for(int i = 0; i < fitnessValues.length; i++){
+            bound += fitnessValues[i];
+            if(selectedPoint < bound){
                 return parents[i];
             }
         }
+        return parents[parents.length-1];
+    }
+}
+
+class PathCostComparator implements Comparator<Path>{
+    @Override
+    public int compare(Path o1, Path o2) {
+        return Integer.compare(o1.getCost(), o2.getCost());
     }
 }
