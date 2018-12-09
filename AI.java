@@ -5,7 +5,6 @@ Example call cmd line
 
     @2018-11-06, in AI class, cau MI lab, 2018.
 */
-import com.sun.org.apache.bcel.internal.generic.POP;
 
 import java.io.*;
 import java.util.*;
@@ -21,34 +20,27 @@ public class AI{
 
         int [] tmpRoute = null;
         long startTime = System.nanoTime();
-        final int maxTrial = 1000;
         PathCostComparator comparator = new PathCostComparator();
 
         // 1. initialize
         // 50개의 초기 답 구하기 + 서로 다른지 확인하기
-        final int POPULATION_SIZE = 50;
-        TreeSet<Path> population = new TreeSet<>(comparator);
+        final int POPULATION_SIZE = 100;
+        PriorityQueue<Path> population = new PriorityQueue<>(POPULATION_SIZE, comparator);
         for(int i = 0; i < POPULATION_SIZE; i++){
-            tmpRoute = knuthShuffle(mapSize, tmpRoute);
+            tmpRoute = knuthShuffle(mapSize, null);
             population.add(new Path(tmpRoute, mapData));
-//            population.add(new Path(greedysearch(i, mapSize, mapData), mapData));
         }
-        /*for(int i = 50; i < mapSize; i++){
-            Path tmpPath = new Path(greedysearch(i, mapSize, mapData), mapData);
-            if(tmpPath.getCost() < population.last().getCost()) {
-                population.pollLast();
-                population.add(tmpPath);
-            }
-        }*/
 
         long timeLimit = startTime + 30000000000L;
-        while (population.first().getCost() > 4200 || System.nanoTime() < timeLimit){
+        while (System.nanoTime() < timeLimit){
             // 2. offspring
             // 답을 만들 부모 선정
-            while(population.size() > POPULATION_SIZE - 20){
-                population.pollLast();
-            }
             ParentSelector parentSelector = new ParentSelector(population.toArray(new Path[0]));
+
+            // elitism
+            while(population.size() > POPULATION_SIZE - 65){
+                population.poll();
+            }
 
             while (population.size() < POPULATION_SIZE){
                 // 답 만들기, 절반 crossover
@@ -56,7 +48,6 @@ public class AI{
                 Path parent2 = parentSelector.getRandomParent();
                 Path child1 = crossover(parent1, parent2);
                 Path child2 = crossover(parent2, parent1);
-
                 // 3. natural selection
                 population.add(child1);
                 population.add(child2);
@@ -64,7 +55,10 @@ public class AI{
         }
 
         // 4. return result
-        int[] resultRoute = population.first().getRoute();
+        while(population.size() > 1){
+            population.poll();
+        }
+        int[] resultRoute = population.peek().getRoute();
 
         // reordering
         int startIdx = 0;
@@ -86,6 +80,7 @@ public class AI{
     }
 
     private static Path crossover(Path parent1, Path parent2){
+        final double mutationProbablity = 0.05;
         int[] parent1Route = parent1.getRoute();
         int[] parent2Route = parent2.getRoute();
         int halfPathLength = parent1Route.length / 2;
@@ -96,7 +91,7 @@ public class AI{
             visited.set(parent1Route[i]);
             child[i] = parent1Route[i];
         }
-        for(int i = halfPathLength; i < parent1Route.length; i++){
+        for(int i = halfPathLength; i < parent2Route.length; i++){
             if(visited.get(parent2Route[i])){
                 int fromIndex = random.nextInt(parent1Route.length);
                 int alternativeNode = visited.previousClearBit(fromIndex);
@@ -112,7 +107,7 @@ public class AI{
         }
 
         // mutation - exchange
-        if(random.nextDouble() < 0.001){
+        if(random.nextDouble() < mutationProbablity){
             int swapA = random.nextInt(child.length);
             int swapB = random.nextInt(child.length);
             int tmp = child[swapA];
@@ -145,30 +140,6 @@ public class AI{
         }
 
         return newRoute;
-    }
-
-    private static int[] greedysearch(int start, int mapSize, int[][] mapData){
-        BitSet visited = new BitSet(mapSize);
-        int[] route = new int[mapSize];
-        route[0] = start;
-        visited.set(start);
-        for(int i = 1; i < route.length; i++){
-            int currentCityNo = route[i-1];
-            int minAdjacentEdgeCost = 1000;
-            int minAdjacentEdgeDst = 0;
-            // find least adjacent edge
-            for(int j = 0; j < mapSize; j++){
-                if(j == currentCityNo) continue;
-                if(mapData[currentCityNo][j] < minAdjacentEdgeCost && !visited.get(j)){
-                    minAdjacentEdgeCost = mapData[currentCityNo][j];
-                    minAdjacentEdgeDst = j;
-                }
-            }
-
-            route[i] = minAdjacentEdgeDst;
-            visited.set(minAdjacentEdgeDst);
-        }
-        return route;
     }
 
     public static int [][] fileLoader(int nodeSize, File iFile){
@@ -294,7 +265,7 @@ class ParentSelector {
         totalFitnessValues = 0.0;
         fitnessValues = new double[parents.length];
         for(int i = 0; i < parents.length; i++){
-            fitnessValues[i] = ((maxCost - parents[i].getCost()) + (maxCost - minCost))/3.0;
+            fitnessValues[i] = ((maxCost - parents[i].getCost()) + (maxCost - minCost))/4.0;
             totalFitnessValues += fitnessValues[i];
         }
     }
@@ -315,6 +286,6 @@ class ParentSelector {
 class PathCostComparator implements Comparator<Path>{
     @Override
     public int compare(Path o1, Path o2) {
-        return Integer.compare(o1.getCost(), o2.getCost());
+        return -Integer.compare(o1.getCost(), o2.getCost());
     }
 }
