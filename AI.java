@@ -9,6 +9,8 @@ Example call cmd line
 import java.io.*;
 import java.util.*;
 
+import com.sun.org.apache.bcel.internal.generic.POP;
+
 public class AI{
     public static void main(String[] args){
         // Assume AI.class [MapDataFilePath] [OutputFilePath]
@@ -18,31 +20,50 @@ public class AI{
         // File Reading
         int [][] mapData = fileLoader(mapSize, inputFile);
 
+        int [] resultRoute = null;
+        int resultCost = 0;
         int [] tmpRoute = null;
+        int tmpCost = 0;
         long startTime = System.nanoTime();
         PathCostComparator comparator = new PathCostComparator();
 
         // 1. initialize
-        // 50개의 초기 답 구하기 + 서로 다른지 확인하기
-        final int POPULATION_SIZE = 100;
-        PriorityQueue<Path> population = new PriorityQueue<>(POPULATION_SIZE, comparator);
-        for(int i = 0; i < POPULATION_SIZE; i++){
-            tmpRoute = knuthShuffle(mapSize, null);
-            population.add(new Path(tmpRoute, mapData));
+        // 100개의 초기 답 구하기 + 서로 다른지 확인하기
+
+        resultRoute = greedysearch(0, mapSize, mapData);
+        resultCost = getCost(resultRoute, mapData);
+        for(int i = 1; i < mapSize; i++){
+            tmpRoute = greedysearch(i, mapSize, mapData);
+            tmpCost = getCost(tmpRoute, mapData);
+            if(tmpCost < resultCost){
+                resultCost = tmpCost;
+                resultRoute = tmpRoute;
+            }
         }
 
+        final int POPULATION_SIZE = 100;
+        TreeSet<Path> population = new TreeSet<>(comparator);
+        for(int i = 0; i < POPULATION_SIZE; i++){
+            resultRoute = simulatedAnnealing(resultRoute, resultCost, mapData);
+            Path tmpPath = new Path(resultRoute, mapData);
+            resultCost = tmpPath.getCost();
+            population.add(tmpPath);
+        }
+
+        // loop until 30 seconds
         long timeLimit = startTime + 30000000000L;
         while (System.nanoTime() < timeLimit){
             // 2. offspring
+
             // 답을 만들 부모 선정
+            // // elitism
+            // while(population.size() > POPULATION_SIZE - 74){
+            //     population.poll();
+            // }
+
             ParentSelector parentSelector = new ParentSelector(population.toArray(new Path[0]));
 
-            // elitism
-            while(population.size() > POPULATION_SIZE - 65){
-                population.poll();
-            }
-
-            while (population.size() < POPULATION_SIZE){
+            for (int i = 0; i < POPULATION_SIZE; i++){
                 // 답 만들기, 절반 crossover
                 Path parent1 = parentSelector.getRandomParent();
                 Path parent2 = parentSelector.getRandomParent();
@@ -50,15 +71,28 @@ public class AI{
                 Path child2 = crossover(parent2, parent1);
                 // 3. natural selection
                 population.add(child1);
+                if(population.size() > POPULATION_SIZE) population.pollFirst();
                 population.add(child2);
+                if(population.size() > POPULATION_SIZE) population.pollFirst();
             }
+
+            // while (population.size() < POPULATION_SIZE){
+            //     // 답 만들기, 절반 crossover
+            //     Path parent1 = parentSelector.getRandomParent();
+            //     Path parent2 = parentSelector.getRandomParent();
+            //     Path child1 = crossover(parent1, parent2);
+            //     Path child2 = crossover(parent2, parent1);
+            //     // 3. natural selection
+            //     population.add(child1);
+            //     population.add(child2);
+            // }
         }
 
-        // 4. return result
-        while(population.size() > 1){
-            population.poll();
-        }
-        int[] resultRoute = population.peek().getRoute();
+        // // 4. return result
+        // while(population.size() > 1){
+        //     population.poll();
+        // }
+        resultRoute = population.last().getRoute();
 
         // reordering
         int startIdx = 0;
@@ -80,7 +114,7 @@ public class AI{
     }
 
     private static Path crossover(Path parent1, Path parent2){
-        final double mutationProbablity = 0.05;
+        final double mutationProbablity = 0.001;
         int[] parent1Route = parent1.getRoute();
         int[] parent2Route = parent2.getRoute();
         int halfPathLength = parent1Route.length / 2;
@@ -115,6 +149,93 @@ public class AI{
             child[swapB] = tmp;
         }
         return new Path(child, parent1.getMapData());
+    }
+
+    private static int[] greedysearch(int start, int mapSize, int[][] mapData){
+        BitSet visited = new BitSet(mapSize);
+        int[] route = new int[mapSize];
+        route[0] = start;
+        visited.set(start);
+        for(int i = 1; i < route.length; i++){
+            int currentCityNo = route[i-1];
+            int minAdjacentEdgeCost = 1000;
+            int minAdjacentEdgeDst = 0;
+            // find least adjacent edge
+            for(int j = 0; j < mapSize; j++){
+                if(j == currentCityNo) continue;
+                if(mapData[currentCityNo][j] < minAdjacentEdgeCost && !visited.get(j)){
+                    minAdjacentEdgeCost = mapData[currentCityNo][j];
+                    minAdjacentEdgeDst = j;
+                }
+            }
+            
+            route[i] = minAdjacentEdgeDst;
+            visited.set(minAdjacentEdgeDst);
+        }
+        return route;
+    }
+
+    private static int getCost(int[] route, int[][] mapData){
+        int cost = 0;
+        int loopLimit = route.length-1;
+        for(int i = 0; i < loopLimit; i++){
+            cost += mapData[route[i]][route[i+1]];
+        }
+        cost += mapData[route[loopLimit]][route[0]];
+        return cost;
+    }
+
+    private static int[] simulatedAnnealing(int[] resultRoute, int resultCost, int[][] mapData){
+        Random random = new Random();
+        double temperature = 3.898;
+        double coolingRatio = 0.99995;
+        int[] bestRoute = resultRoute;
+        int bestCost = resultCost;
+        
+        int[] tmpRoute;
+        int tmpCost, swapStart, swapEnd;
+
+        while (temperature > 1) {
+            do{
+                swapStart = random.nextInt(resultRoute.length);
+                swapEnd = random.nextInt(resultRoute.length);
+            }while(swapStart >= swapEnd);
+            
+            tmpRoute = twoOptSwap(resultRoute, swapStart, swapEnd);
+            tmpCost = getCost(tmpRoute, mapData);
+            if(random.nextDouble() < getAcceptanceProbability(tmpCost, resultCost, temperature)){
+                resultRoute = tmpRoute;
+                resultCost = tmpCost;
+            }
+            if(resultCost < bestCost){
+                bestRoute = resultRoute;
+                bestCost = resultCost;
+            }
+
+            temperature *= coolingRatio;
+        }
+
+        return bestRoute;
+    }
+
+    private static double getAcceptanceProbability(int tmpCost, int resultCost, double temperature){
+        if (tmpCost < resultCost){
+            return 1.0;
+        }
+        return Math.exp((resultCost - tmpCost) / temperature);
+    }
+
+    private static int[] twoOptSwap(int[] existingRoute, int swapStart, int swapEnd){
+        int [] newRoute = new int[existingRoute.length];
+        for(int i = 0; i < existingRoute.length; i++){
+            if(i >= swapStart && i <= swapEnd){
+                newRoute[i] = existingRoute[swapEnd - (i - swapStart)];
+            }
+            else{
+                newRoute[i] = existingRoute[i];
+            }
+        }
+        return newRoute;
     }
 
     private static int[] knuthShuffle(int mapSize, int[] initialRoute){
