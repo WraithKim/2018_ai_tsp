@@ -20,16 +20,14 @@ public class AI{
         // File Reading
         int [][] mapData = fileLoader(mapSize, inputFile);
 
-        int [] resultRoute = null;
+        int [] resultRoute;
+        int [] tmpRoute;
         int resultCost = 0;
-        int [] tmpRoute = null;
         int tmpCost = 0;
         long startTime = System.nanoTime();
-        PathCostComparator comparator = new PathCostComparator();
-
-        // 1. initialize
-        // 100개의 초기 답 구하기 + 서로 다른지 확인하기
-
+        // resultRoute = knuthShuffle(mapSize);
+        // resultCost = getCost(resultRoute, mapData);
+        // 1. greedy search
         resultRoute = greedysearch(0, mapSize, mapData);
         resultCost = getCost(resultRoute, mapData);
         for(int i = 1; i < mapSize; i++){
@@ -40,59 +38,18 @@ public class AI{
                 resultRoute = tmpRoute;
             }
         }
-
-        final int POPULATION_SIZE = 100;
-        TreeSet<Path> population = new TreeSet<>(comparator);
-        for(int i = 0; i < POPULATION_SIZE; i++){
-            resultRoute = simulatedAnnealing(resultRoute, resultCost, mapData);
-            Path tmpPath = new Path(resultRoute, mapData);
-            resultCost = tmpPath.getCost();
-            population.add(tmpPath);
-        }
-
-        // loop until 30 seconds
+        
+        /* // 2. hill-climbing search
         long timeLimit = startTime + 30000000000L;
-        while (System.nanoTime() < timeLimit){
-            // 2. offspring
+        do{
+            tmpRoute = stochasticHillClimbing(resultRoute, resultCost, mapData);
+            tmpCost = getCost(tmpRoute, mapData);
+            resultRoute = tmpRoute;
+            resultCost = tmpCost;
+        }while(System.nanoTime() < timeLimit); */
 
-            // 답을 만들 부모 선정
-            // // elitism
-            // while(population.size() > POPULATION_SIZE - 74){
-            //     population.poll();
-            // }
-
-            ParentSelector parentSelector = new ParentSelector(population.toArray(new Path[0]));
-
-            for (int i = 0; i < POPULATION_SIZE; i++){
-                // 답 만들기, 절반 crossover
-                Path parent1 = parentSelector.getRandomParent();
-                Path parent2 = parentSelector.getRandomParent();
-                Path child1 = crossover(parent1, parent2);
-                Path child2 = crossover(parent2, parent1);
-                // 3. natural selection
-                population.add(child1);
-                if(population.size() > POPULATION_SIZE) population.pollFirst();
-                population.add(child2);
-                if(population.size() > POPULATION_SIZE) population.pollFirst();
-            }
-
-            // while (population.size() < POPULATION_SIZE){
-            //     // 답 만들기, 절반 crossover
-            //     Path parent1 = parentSelector.getRandomParent();
-            //     Path parent2 = parentSelector.getRandomParent();
-            //     Path child1 = crossover(parent1, parent2);
-            //     Path child2 = crossover(parent2, parent1);
-            //     // 3. natural selection
-            //     population.add(child1);
-            //     population.add(child2);
-            // }
-        }
-
-        // // 4. return result
-        // while(population.size() > 1){
-        //     population.poll();
-        // }
-        resultRoute = population.last().getRoute();
+        // 2. simulated annealing
+        resultRoute = stochasticHillClimbing(resultRoute, resultCost, mapData);
 
         // reordering
         int startIdx = 0;
@@ -151,6 +108,37 @@ public class AI{
         return new Path(child, parent1.getMapData());
     }
 
+    private static int[] stochasticHillClimbing(int[] resultRoute, int resultCost, int[][] mapData){
+        long startTime = System.nanoTime();
+        Random random = new Random();
+        double temperature = 3.8;
+        int[] bestRoute = resultRoute;
+        int bestCost = resultCost;
+        
+        int[] tmpRoute;
+        int tmpCost, swapStart, swapEnd;
+        long timeLimit = startTime + 30000000000L;
+        while (System.nanoTime() < timeLimit) {
+            do{
+                swapStart = random.nextInt(resultRoute.length);
+                swapEnd = random.nextInt(resultRoute.length);
+            }while(swapStart >= swapEnd);
+            
+            tmpRoute = twoOptSwap(resultRoute, swapStart, swapEnd);
+            tmpCost = getCost(tmpRoute, mapData);
+            if(random.nextDouble() < getAcceptanceProbability(tmpCost, resultCost, temperature)){
+                resultRoute = tmpRoute;
+                resultCost = tmpCost;
+            }
+            if(resultCost < bestCost){
+                bestRoute = resultRoute;
+                bestCost = resultCost;
+            }
+        }
+
+        return bestRoute;
+    }
+
     private static int[] greedysearch(int start, int mapSize, int[][] mapData){
         BitSet visited = new BitSet(mapSize);
         int[] route = new int[mapSize];
@@ -187,8 +175,8 @@ public class AI{
 
     private static int[] simulatedAnnealing(int[] resultRoute, int resultCost, int[][] mapData){
         Random random = new Random();
-        double temperature = 3.898;
-        double coolingRatio = 0.99995;
+        double temperature = 3.8;
+        double coolingRatio = 0.99998;
         int[] bestRoute = resultRoute;
         int bestCost = resultCost;
         
